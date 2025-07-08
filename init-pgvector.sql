@@ -18,8 +18,8 @@ BEGIN
     RAISE NOTICE 'pgvector extension successfully installed and enabled';
 END $$;
 
--- Display vector version for verification
-SELECT vector_version() as pgvector_version;
+-- Display extension information for verification
+SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';
 
 -- Create a test table to verify vector operations work
 CREATE TABLE IF NOT EXISTS test_vectors (
