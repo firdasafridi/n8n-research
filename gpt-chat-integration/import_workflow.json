@@ -1,0 +1,490 @@
+{
+    "name": "My workflow",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "webhook/upload-doc",
+          "options": {
+            "binaryPropertyName": "data"
+          }
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "id": "bf81a44a-505a-4c7e-b835-e54d523a7313",
+        "name": "Webhook",
+        "webhookId": "23875bf5-cb3b-474e-bea7-91bdbebf8e97"
+      },
+      {
+        "parameters": {
+          "operation": "xlsx",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          220,
+          0
+        ],
+        "id": "7d9dfa72-d18d-43b5-905f-8ece48b935a6",
+        "name": "Extract from File"
+      },
+      {
+        "parameters": {
+          "options": {
+            "dimensions": 1024,
+            "batchSize": 512,
+            "stripNewLines": true,
+            "timeout": -1
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        "typeVersion": 1.2,
+        "position": [
+          1020,
+          200
+        ],
+        "id": "b602b385-df47-48f8-aacd-bc6b76907a57",
+        "name": "Embeddings OpenAI1",
+        "credentials": {
+          "openAiApi": {
+            "id": "ba7S3h86roxPMAvy",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.openai.com/v1/embeddings",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer {{key}}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "input",
+                "value": "={{ $json.text }}"
+              },
+              {
+                "name": "model",
+                "value": "text-embedding-ada-002"
+              }
+            ]
+          },
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            }
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          660,
+          0
+        ],
+        "id": "8ded0eb8-c500-4eb8-ba8f-b9affcd3515f",
+        "name": "HTTP Request"
+      },
+      {
+        "parameters": {
+          "jsCode": "\nreturn [{\n  json: {\n    text: $('Join to text').first().json.text,\n    embedding: $json.data[0].embedding,\n  }\n}];\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          0
+        ],
+        "id": "4b6bcc87-f9a1-4a74-9cc7-61c0c2bb0b61",
+        "name": "Extract embedding"
+      },
+      {
+        "parameters": {
+          "jsCode": "return items.map(item => {\n  const row = item.json;\n  const content = Object.values(row).join(' ');\n  return {\n    json: {\n      text: content.trim(),\n    },\n  };\n});\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          420,
+          0
+        ],
+        "id": "b8e91a89-7e75-4f13-ba04-42b0c0e6f695",
+        "name": "Join to text"
+      },
+      {
+        "parameters": {
+          "mode": "insert",
+          "memoryKey": {
+            "__rl": true,
+            "mode": "list",
+            "value": "vector_store_key"
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+        "typeVersion": 1.3,
+        "position": [
+          1040,
+          0
+        ],
+        "id": "580f3a8b-bd08-4884-ba74-efcabec563e9",
+        "name": "Simple Vector Store"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+        "typeVersion": 1.1,
+        "position": [
+          1160,
+          200
+        ],
+        "id": "3eb0e9a0-dfcd-426d-a99a-3fa85cd1f041",
+        "name": "Default Data Loader"
+      },
+      {
+        "parameters": {
+          "public": true,
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          0,
+          440
+        ],
+        "id": "1933a4bc-1a0d-457e-afa8-3c046c62786c",
+        "name": "When chat message received",
+        "webhookId": "bfb5f328-f21e-48aa-807d-d917e68917c8"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "8b80410b-a6e2-4a65-bd4d-c730ced70762",
+                "name": "chunks",
+                "value": 4,
+                "type": "number"
+              }
+            ]
+          },
+          "includeOtherFields": true,
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          220,
+          440
+        ],
+        "id": "35126d47-a25b-4b3c-8893-74936c4acd21",
+        "name": "Edit Fields"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+        "typeVersion": 1.2,
+        "position": [
+          440,
+          660
+        ],
+        "id": "f6b94c17-f94f-41f0-bfce-414b414a8b67",
+        "name": "Embeddings OpenAI",
+        "credentials": {
+          "openAiApi": {
+            "id": "ba7S3h86roxPMAvy",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "let out = \"\"\nfor (const i in $input.all()) {\n  let itemText = \"--- Citation \" + i + \" ---\\n\"\n  itemText += $input.all()[i].json.document.pageContent + \"\\n\"\n  itemText += \"\\n\"\n  out += itemText\n}\n\nreturn {\n  'context': out\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          800,
+          440
+        ],
+        "id": "0d3349e6-0e52-4812-8700-2313606c71ac",
+        "name": "Code"
+      },
+      {
+        "parameters": {
+          "text": "=\n\nQuestion: {{ $('When chat message received').first().json.chatInput }}\nHelpful Answer:\n{{ $json.context }}",
+          "schemaType": "manual",
+          "inputSchema": "{\n  \"type\": \"object\",\n  \"required\": [\"answer\", \"citations\"],\n  \"properties\": {\n    \"answer\": {\n      \"type\": \"string\"\n    },\n    \"citations\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"number\"\n      }\n    }\n  }\n}",
+          "options": {
+            "systemPromptTemplate": "Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer. Important: In your response, also include the the indexes of the chunks you used to generate the answer."
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+        "typeVersion": 1.2,
+        "position": [
+          1020,
+          440
+        ],
+        "id": "7c009d8b-98c1-48eb-815b-395eb57e0bd2",
+        "name": "Information Extractor"
+      },
+      {
+        "parameters": {
+          "model": {
+            "__rl": true,
+            "mode": "list",
+            "value": "gpt-4.1-mini"
+          },
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "typeVersion": 1.2,
+        "position": [
+          1060,
+          660
+        ],
+        "id": "0a21d37b-0260-454c-92de-f5aee3c9da0a",
+        "name": "OpenAI Chat Model",
+        "credentials": {
+          "openAiApi": {
+            "id": "ba7S3h86roxPMAvy",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "load",
+          "memoryKey": {
+            "__rl": true,
+            "mode": "list",
+            "value": "vector_store_key"
+          },
+          "prompt": "={{ $json.chatInput }}",
+          "topK": "={{ $json.chunks }}"
+        },
+        "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+        "typeVersion": 1.3,
+        "position": [
+          440,
+          440
+        ],
+        "id": "81241ad2-05ba-4afa-8634-9c77ee0da887",
+        "name": "GetKnowledge"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "f2be3c3c-0aae-47ac-b22b-a4458e4f9e00",
+                "name": "text",
+                "value": "={{$json.output.answer + \"\\n\" + $(\"Code\").first().json.context}}\n",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1340,
+          440
+        ],
+        "id": "de1b815f-6d75-4444-8960-fa255db3d3d6",
+        "name": "Edit Fields1"
+      }
+    ],
+    "pinData": {},
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Extract from File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract from File": {
+        "main": [
+          [
+            {
+              "node": "Join to text",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request": {
+        "main": [
+          [
+            {
+              "node": "Extract embedding",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Join to text": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract embedding": {
+        "main": [
+          [
+            {
+              "node": "Simple Vector Store",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Embeddings OpenAI1": {
+        "ai_embedding": [
+          [
+            {
+              "node": "Simple Vector Store",
+              "type": "ai_embedding",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Default Data Loader": {
+        "ai_document": [
+          [
+            {
+              "node": "Simple Vector Store",
+              "type": "ai_document",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "When chat message received": {
+        "main": [
+          [
+            {
+              "node": "Edit Fields",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Edit Fields": {
+        "main": [
+          [
+            {
+              "node": "GetKnowledge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Embeddings OpenAI": {
+        "ai_embedding": [
+          [
+            {
+              "node": "GetKnowledge",
+              "type": "ai_embedding",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code": {
+        "main": [
+          [
+            {
+              "node": "Information Extractor",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenAI Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Information Extractor",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Information Extractor": {
+        "main": [
+          [
+            {
+              "node": "Edit Fields1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "GetKnowledge": {
+        "main": [
+          [
+            {
+              "node": "Code",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "active": false,
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "versionId": "74612c24-4228-4000-8bf8-1f1979c94f3e",
+    "meta": {
+      "templateCredsSetupCompleted": true,
+      "instanceId": "364c5412161d520130bfac9a3bac23d566a2a0f8908c7890f87079349ca10ac5"
+    },
+    "id": "WMogqWUYb7Q2nZyD",
+    "tags": []
+  }
+  
